@@ -132,9 +132,9 @@ export default function Home() {
     if (!snapshot.exists()) throw new Error("해당 촬영 방을 찾지 못했습니다.");
     if ((snapshot.val() as RoomState).passwordHash !== passwordHash) throw new Error("비밀번호가 맞지 않습니다.");
 
-    const result = await runTransaction(roomReference, (current: RoomState | null) => {
-      if (!current || current.passwordHash !== passwordHash) return;
-      const cameras = current.cameras ?? {};
+    const camerasReference = ref(database, `rooms/${code}/cameras`);
+    const result = await runTransaction(camerasReference, (current: RoomState["cameras"] | null) => {
+      const cameras = current ?? {};
       let slot: CameraSlot | undefined;
       if (cameras.A?.uid === uid) slot = "A";
       else if (cameras.B?.uid === uid) slot = "B";
@@ -142,16 +142,13 @@ export default function Home() {
       else if (!cameras.B) slot = "B";
       if (!slot) return;
       return {
-        ...current,
-        cameras: {
-          ...cameras,
-          [slot]: cameras[slot] ?? { uid, ready: false, joinedAt: serverTimestamp() },
-        },
+        ...cameras,
+        [slot]: cameras[slot] ?? { uid, ready: false, joinedAt: serverTimestamp() },
       };
     });
 
     if (!result.committed) throw new Error("이미 스마트폰 두 대가 연결되어 있습니다.");
-    const cameras = (result.snapshot.val() as RoomState).cameras ?? {};
+    const cameras = (result.snapshot.val() as RoomState["cameras"]) ?? {};
     const slot = cameras.A?.uid === uid ? "A" : cameras.B?.uid === uid ? "B" : undefined;
     if (!slot) throw new Error("카메라 번호를 배정하지 못했습니다.");
     setSession({ code, role: "camera", slot });
