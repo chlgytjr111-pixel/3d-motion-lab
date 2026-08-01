@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { signInAnonymously } from "firebase/auth";
 import {
   get,
@@ -92,6 +92,7 @@ export default function Home() {
   const [durationSeconds, setDurationSeconds] = useState(String(defaultCaptureSettings.durationSeconds));
   const [cameraActive, setCameraActive] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const captureSettingsSyncRef = useRef("");
 
   const canContinue = useMemo(() => {
     const needsCode = mode === "camera" || teacherAction === "resume";
@@ -147,9 +148,13 @@ export default function Home() {
       setRoom(nextRoom);
       setRoomLoading(false);
       if (nextRoom?.captureSettings) {
-        setDesiredFps(String(nextRoom.captureSettings.fps));
-        setShutterDenominator(String(nextRoom.captureSettings.shutterDenominator));
-        setDurationSeconds(String(nextRoom.captureSettings.durationSeconds));
+        const settingsKey = `${session.code}:${nextRoom.captureSettings.fps}:${nextRoom.captureSettings.shutterDenominator}:${nextRoom.captureSettings.durationSeconds}`;
+        if (captureSettingsSyncRef.current !== settingsKey) {
+          captureSettingsSyncRef.current = settingsKey;
+          setDesiredFps(String(nextRoom.captureSettings.fps));
+          setShutterDenominator(String(nextRoom.captureSettings.shutterDenominator));
+          setDurationSeconds(String(nextRoom.captureSettings.durationSeconds));
+        }
       }
       if (!nextRoom) window.localStorage.removeItem(savedSessionKey);
     });
