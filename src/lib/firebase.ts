@@ -1,4 +1,6 @@
 import { FirebaseApp, getApps, initializeApp } from "firebase/app";
+import { Auth, getAuth } from "firebase/auth";
+import { Database, getDatabase } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -15,4 +17,14 @@ export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean)
 export function getFirebaseApp(): FirebaseApp | null {
   if (!isFirebaseConfigured) return null;
   return getApps()[0] ?? initializeApp(firebaseConfig);
+}
+
+export function getFirebaseAuth(): Auth | null {
+  const app = getFirebaseApp();
+  return app ? getAuth(app) : null;
+}
+
+export function getRealtimeDatabase(): Database | null {
+  const app = getFirebaseApp();
+  return app ? getDatabase(app) : null;
 }
