@@ -71,6 +71,7 @@ export default function Home() {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(0);
+  const [serverOffset, setServerOffset] = useState(0);
 
   const canContinue = useMemo(() => {
     const validName = mode === "teacher" ? roomName.trim().length >= 2 : normalizeRoomCode(roomName).length === 6;
@@ -80,7 +81,15 @@ export default function Home() {
   const connectedCount = Number(Boolean(room?.cameras?.A)) + Number(Boolean(room?.cameras?.B));
   const readyCount = Number(Boolean(room?.cameras?.A?.ready)) + Number(Boolean(room?.cameras?.B?.ready));
   const startAt = room?.recording?.startAt ?? 0;
-  const countdown = startAt ? Math.max(0, Math.ceil((startAt - now) / 1000)) : 0;
+  const countdown = startAt ? Math.max(0, Math.ceil((startAt - (now + serverOffset)) / 1000)) : 0;
+
+  useEffect(() => {
+    const database = getRealtimeDatabase();
+    if (!database) return;
+    return onValue(ref(database, ".info/serverTimeOffset"), (snapshot) => {
+      setServerOffset(Number(snapshot.val()) || 0);
+    });
+  }, []);
 
   useEffect(() => {
     if (!session) return;
@@ -190,7 +199,7 @@ export default function Home() {
     await update(ref(database, `rooms/${session.code}`), {
       status: "countdown",
       recording: {
-        startAt: Date.now() + 5000,
+        startAt: Date.now() + serverOffset + 5000,
         requestedAt: serverTimestamp(),
         sequence: nextSequence,
       },
