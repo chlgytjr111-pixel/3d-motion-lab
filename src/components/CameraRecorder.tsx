@@ -128,6 +128,13 @@ export function CameraRecorder({
     }
     if (recorderRef.current?.state === "recording") return;
 
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = "";
+      setPreviewUrl("");
+      setFileName("");
+    }
+
     const mimeType = chooseMimeType();
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
     chunksRef.current = [];
@@ -146,6 +153,7 @@ export function CameraRecorder({
       setPreviewUrl(nextUrl);
       setFileName(nextFileName);
       setRecording(false);
+      recorderRef.current = null;
       setStatus("녹화가 끝났습니다. 영상을 확인하고 이 핸드폰에 저장할 수 있습니다.");
       stopFlashMonitor();
     };

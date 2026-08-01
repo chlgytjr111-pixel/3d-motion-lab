@@ -46,6 +46,13 @@ const roomAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const savedSessionKey = "3d-motion-lab-session-v1";
 const defaultCaptureSettings: CaptureSettings = { fps: 30, shutterDenominator: 200, durationSeconds: 5 };
 
+function normalizeNumberInput(value: string, fallback: number, min: number, max: number) {
+  if (!value.trim()) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(parsed)));
+}
+
 function makeRoomCode() {
   const values = crypto.getRandomValues(new Uint8Array(6));
   return Array.from(values, (value) => roomAlphabet[value % roomAlphabet.length]).join("");
@@ -80,9 +87,9 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [now, setNow] = useState(0);
   const [serverOffset, setServerOffset] = useState(0);
-  const [desiredFps, setDesiredFps] = useState(defaultCaptureSettings.fps);
-  const [shutterDenominator, setShutterDenominator] = useState(defaultCaptureSettings.shutterDenominator);
-  const [durationSeconds, setDurationSeconds] = useState(defaultCaptureSettings.durationSeconds);
+  const [desiredFps, setDesiredFps] = useState(String(defaultCaptureSettings.fps));
+  const [shutterDenominator, setShutterDenominator] = useState(String(defaultCaptureSettings.shutterDenominator));
+  const [durationSeconds, setDurationSeconds] = useState(String(defaultCaptureSettings.durationSeconds));
   const [cameraActive, setCameraActive] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
@@ -140,9 +147,9 @@ export default function Home() {
       setRoom(nextRoom);
       setRoomLoading(false);
       if (nextRoom?.captureSettings) {
-        setDesiredFps(nextRoom.captureSettings.fps);
-        setShutterDenominator(nextRoom.captureSettings.shutterDenominator);
-        setDurationSeconds(nextRoom.captureSettings.durationSeconds);
+        setDesiredFps(String(nextRoom.captureSettings.fps));
+        setShutterDenominator(String(nextRoom.captureSettings.shutterDenominator));
+        setDurationSeconds(String(nextRoom.captureSettings.durationSeconds));
       }
       if (!nextRoom) window.localStorage.removeItem(savedSessionKey);
     });
@@ -157,6 +164,11 @@ export default function Home() {
   async function createRoom(uid: string, passwordHash: string) {
     const database = getRealtimeDatabase();
     if (!database) throw new Error("Firebase 데이터베이스에 연결할 수 없습니다.");
+    const initialSettings: CaptureSettings = {
+      fps: normalizeNumberInput(desiredFps, defaultCaptureSettings.fps, 1, 240),
+      shutterDenominator: normalizeNumberInput(shutterDenominator, defaultCaptureSettings.shutterDenominator, 1, 10000),
+      durationSeconds: normalizeNumberInput(durationSeconds, defaultCaptureSettings.durationSeconds, 1, 120),
+    };
 
     for (let attempt = 0; attempt < 8; attempt += 1) {
       const code = makeRoomCode();
@@ -169,11 +181,7 @@ export default function Home() {
           status: "waiting",
           createdAt: serverTimestamp(),
           cameras: {},
-          captureSettings: {
-            fps: desiredFps,
-            shutterDenominator,
-            durationSeconds,
-          },
+          captureSettings: initialSettings,
         } satisfies RoomState;
       });
       if (result.committed) {
@@ -277,14 +285,14 @@ export default function Home() {
     const database = getRealtimeDatabase();
     if (!database) return;
     const settings: CaptureSettings = {
-      fps: Math.min(240, Math.max(1, Math.round(desiredFps))),
-      shutterDenominator: Math.min(10000, Math.max(1, Math.round(shutterDenominator))),
-      durationSeconds: Math.min(120, Math.max(1, Math.round(durationSeconds))),
+      fps: normalizeNumberInput(desiredFps, captureSettings.fps, 1, 240),
+      shutterDenominator: normalizeNumberInput(shutterDenominator, captureSettings.shutterDenominator, 1, 10000),
+      durationSeconds: normalizeNumberInput(durationSeconds, captureSettings.durationSeconds, 1, 120),
     };
     await set(ref(database, `rooms/${session.code}/captureSettings`), settings);
-    setDesiredFps(settings.fps);
-    setShutterDenominator(settings.shutterDenominator);
-    setDurationSeconds(settings.durationSeconds);
+    setDesiredFps(String(settings.fps));
+    setShutterDenominator(String(settings.shutterDenominator));
+    setDurationSeconds(String(settings.durationSeconds));
     setMessage("촬영 설정을 두 스마트폰에 보냈습니다.");
   }
 
@@ -309,7 +317,11 @@ export default function Home() {
     if (!database) return;
     await update(ref(database, `rooms/${session.code}`), {
       status: "waiting",
-      recording: null,
+      recording: {
+        startAt: 0,
+        requestedAt: serverTimestamp(),
+        sequence: room?.recording?.sequence ?? 0,
+      },
       "cameras/A/ready": false,
       "cameras/B/ready": false,
     });
@@ -465,9 +477,9 @@ export default function Home() {
                 <section className="capture-settings" aria-label="촬영 설정">
                   <div className="settings-heading"><div><span className="entry-tag">CAPTURE SETTINGS</span><h3>두 스마트폰 촬영 설정</h3></div><p>기기가 지원하는 범위에서 요청값을 적용하고, 실제 적용값은 각 핸드폰에 표시된다.</p></div>
                   <div className="settings-grid">
-                    <label>초당 프레임(FPS)<input type="number" min="1" max="240" value={desiredFps} onChange={(event) => setDesiredFps(Number(event.target.value))} /></label>
-                    <label>셔터 속도(1/N초)<input type="number" min="1" max="10000" value={shutterDenominator} onChange={(event) => setShutterDenominator(Number(event.target.value))} /></label>
-                    <label>촬영 시간(초)<input type="number" min="1" max="120" value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))} /></label>
+                    <label>초당 프레임(FPS)<input type="number" min="1" max="240" value={desiredFps} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setDesiredFps(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); void saveCaptureSettings(); } }} /></label>
+                    <label>셔터 속도(1/N초)<input type="number" min="1" max="10000" value={shutterDenominator} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setShutterDenominator(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); void saveCaptureSettings(); } }} /></label>
+                    <label>촬영 시간(초)<input type="number" min="1" max="120" value={durationSeconds} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setDurationSeconds(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); void saveCaptureSettings(); } }} /></label>
                     <button className="continue-button" onClick={() => void saveCaptureSettings()}>두 핸드폰에 적용 <span>→</span></button>
                   </div>
                   {message && <p className="settings-message">{message}</p>}
