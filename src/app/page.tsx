@@ -386,14 +386,68 @@ export default function Home() {
         </div>
 
         <div className="orbit-card" aria-label="두 카메라 3차원 촬영 개념 그림">
-          <div className="grid-floor" />
-          <div className="axis axis-x"><span>X</span></div>
-          <div className="axis axis-y"><span>Y</span></div>
-          <div className="axis axis-z"><span>Z</span></div>
-          <div className="camera camera-a"><span>CAM A</span></div>
-          <div className="camera camera-b"><span>CAM B</span></div>
-          <div className="ray ray-a" /><div className="ray ray-b" />
-          <div className="object-dot"><span>3D</span></div>
+          <svg className="coordinate-scene" viewBox="0 0 620 430" role="img" aria-labelledby="coordinate-title coordinate-description">
+            <title id="coordinate-title">두 카메라와 오른손 3차원 좌표계</title>
+            <desc id="coordinate-description">하나의 원점에서 X축은 오른쪽 아래, Y축은 왼쪽 아래, Z축은 위로 향하며 두 카메라의 시선이 공간의 빨간 점에서 만난다.</desc>
+            <defs>
+              <linearGradient id="floor-fade" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#ffffff" stopOpacity="0.78" />
+                <stop offset="1" stopColor="#dce7f7" stopOpacity="0.42" />
+              </linearGradient>
+              <filter id="point-glow" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="7" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+              <marker id="arrow-x" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#ef554d" /></marker>
+              <marker id="arrow-y" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#1f9b79" /></marker>
+              <marker id="arrow-z" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#2f63dc" /></marker>
+            </defs>
+
+            <path className="coordinate-floor" d="M310 235L478 315L310 395L142 315Z" fill="url(#floor-fade)" />
+            <g className="coordinate-grid">
+              <path d="M310 235L478 315M268 255L436 335M226 275L394 355M184 295L352 375M142 315L310 395" />
+              <path d="M310 235L142 315M352 255L184 335M394 275L226 355M436 295L268 375M478 315L310 395" />
+            </g>
+
+            <g className="sight-lines">
+              <path className="sight-a" d="M105 151L350 188" />
+              <path className="sight-b" d="M521 165L350 188" />
+            </g>
+
+            <g className="coordinate-axes">
+              <path className="axis-line axis-line-x" d="M310 235L494 323" markerEnd="url(#arrow-x)" />
+              <path className="axis-line axis-line-y" d="M310 235L126 323" markerEnd="url(#arrow-y)" />
+              <path className="axis-line axis-line-z" d="M310 235L310 55" markerEnd="url(#arrow-z)" />
+              <circle className="origin-point" cx="310" cy="235" r="5" />
+              <text className="origin-label" x="296" y="254">O</text>
+              <text className="axis-label axis-label-x" x="511" y="331">X</text>
+              <text className="axis-label axis-label-y" x="103" y="331">Y</text>
+              <text className="axis-label axis-label-z" x="300" y="36">Z</text>
+              <text className="plane-label" x="278" y="381">xy 평면</text>
+            </g>
+
+            <path className="point-projection" d="M350 188L350 304" />
+            <circle className="projection-foot" cx="350" cy="304" r="4" />
+            <g className="target-point" filter="url(#point-glow)">
+              <circle cx="350" cy="188" r="13" />
+              <circle cx="350" cy="188" r="4" />
+            </g>
+            <g className="target-label" transform="translate(369 166)">
+              <rect width="92" height="32" rx="10" />
+              <text x="46" y="21" textAnchor="middle">공간의 한 점</text>
+            </g>
+
+            <g className="scene-camera scene-camera-a" transform="translate(55 104) rotate(-8 48 34)">
+              <rect width="96" height="68" rx="15" />
+              <circle cx="50" cy="28" r="16" /><circle cx="50" cy="28" r="7" />
+              <text x="48" y="58" textAnchor="middle">CAM A</text>
+            </g>
+            <g className="scene-camera scene-camera-b" transform="translate(474 116) rotate(8 48 34)">
+              <rect width="96" height="68" rx="15" />
+              <circle cx="46" cy="28" r="16" /><circle cx="46" cy="28" r="7" />
+              <text x="48" y="58" textAnchor="middle">CAM B</text>
+            </g>
+          </svg>
           <div className="orbit-caption"><span>실시간 연결</span><strong>두 시선이 만나는 한 점</strong></div>
         </div>
       </section>
