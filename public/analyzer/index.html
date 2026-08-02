@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3D Motion Lab · 분석 작업대</title>
+  <link rel="stylesheet" href="./base.css">
+  <link rel="stylesheet" href="./video.css">
+  <link rel="stylesheet" href="./workspace.css">
+</head>
+<body><main class="shell">
+    <header class="hero">
+      <div>
+        <span class="badge">실험용 프로토타입</span>
+        <h1>두 사진으로 3D 좌표 찾기</h1>
+        <p>두 카메라 사진에서 같은 기준점과 목표점을 차례로 찍어, 두 시선이 가장 가까워지는 3차원 위치를 계산합니다.</p>
+      </div>
+      <div class="server-status" id="serverStatus">
+        <strong>Drive 연결 확인 중</strong>
+        <span>잠시만 기다려 주세요.</span>
+      </div>
+    </header>
+
+    <div class="steps" aria-label="사용 순서">
+      <div class="step"><span class="step-num">1</span><span>사진 A와 B 선택</span></div>
+      <div class="step"><span class="step-num">2</span><span>알려진 기준점 보정</span></div>
+      <div class="step"><span class="step-num">3</span><span>같은 목표점 클릭</span></div>
+    </div>
+
+    <div class="notice">
+      <strong>중요:</strong> 바닥의 평면 격자점만으로는 높이까지 안정적으로 보정할 수 없습니다.
+      원점·x축·y축 점과 함께 <strong>z축 위의 점 등 서로 다른 높이에 있는 기준점</strong>을 최소 6개,
+      가능하면 8개 이상 사용하세요. 두 사진은 같은 장면을 서로 다른 위치에서 찍어야 합니다.
+    </div>
+
+    <div class="capture-guide" id="captureGuide" role="status" aria-live="polite" aria-atomic="true">
+      <div class="capture-guide-main">
+        <span class="capture-guide-kicker" id="captureGuideKicker">지금 찍을 기준점</span>
+        <strong class="capture-guide-title" id="captureGuideTitle">1번 · 원점 O</strong>
+        <span class="capture-guide-coords" id="captureGuideCoords">X 0 · Y 0 · Z 0</span>
+        <span class="capture-guide-instruction" id="captureGuideInstruction">사진 A와 B를 먼저 선택하세요.</span>
+      </div>
+      <div class="capture-guide-side">
+        <span class="capture-guide-progress" id="captureGuideProgress">완료 0 / 7</span>
+        <div class="capture-statuses">
+          <span class="capture-status missing" id="captureStatusA">사진 A · 사진 필요</span>
+          <span class="capture-status missing" id="captureStatusB">사진 B · 사진 필요</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="section" aria-labelledby="photoHeading">
+      <div class="section-head">
+        <div>
+          <h2 id="photoHeading">1. 사진 두 장 선택</h2>
+          <p>JPG, PNG, WebP를 사용할 수 있습니다. 계산과 저장에 쓰는 사진은 자동으로 최대 1800px로 줄어듭니다.</p>
+        </div>
+      </div>
+
+      <div class="photo-grid">
+        <article class="photo-card" id="photoCardA">
+          <div class="photo-toolbar">
+            <div class="photo-title"><span class="camera-dot"></span>카메라 A</div>
+            <label class="file-button">사진 선택
+              <input id="fileA" type="file" accept="image/jpeg,image/png,image/webp">
+            </label>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="canvasA" width="800" height="520" aria-label="카메라 A 사진"></canvas>
+            <div class="canvas-placeholder" id="placeholderA">첫 번째 카메라 사진을 선택하세요.</div>
+          </div>
+          <div class="photo-meta" id="metaA">아직 선택한 사진이 없습니다.</div>
+        </article>
+
+        <article class="photo-card" id="photoCardB">
+          <div class="photo-toolbar">
+            <div class="photo-title"><span class="camera-dot"></span>카메라 B</div>
+            <label class="file-button">사진 선택
+              <input id="fileB" type="file" accept="image/jpeg,image/png,image/webp">
+            </label>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="canvasB" width="800" height="520" aria-label="카메라 B 사진"></canvas>
+            <div class="canvas-placeholder" id="placeholderB">두 번째 카메라 사진을 선택하세요.</div>
+          </div>
+          <div class="photo-meta" id="metaB">아직 선택한 사진이 없습니다.</div>
+        </article>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="uploadButton" type="button">두 사진을 Drive에 저장</button>
+        <span class="hint">사진을 바꾸면 해당 사진의 클릭 좌표가 초기화됩니다. 공개 배포에서는 링크를 받은 사용자가 지정 Drive 폴더에 파일을 저장할 수 있으므로 링크를 필요한 사람에게만 전달하세요.</span>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="calHeading">
+      <div class="section-head">
+        <div>
+          <h2 id="calHeading">2. 좌표계와 기준점 보정</h2>
+          <p>행 하나를 선택한 뒤, 실제로 같은 기준점을 사진 A와 사진 B에서 각각 클릭하세요.</p>
+        </div>
+      </div>
+
+      <div class="calibration-controls">
+        <div class="control-box">
+          <label for="unitScale">표의 좌표 1칸이 실제로 얼마인가요?</label>
+          <div class="inline-fields">
+            <input id="unitScale" type="number" value="1" min="0.000001" step="any" aria-label="한 칸 길이">
+            <input id="unitName" type="text" value="칸" maxlength="12" aria-label="길이 단위">
+          </div>
+          <div class="hint">예: 격자 1칸이 10cm이면 ‘10’과 ‘cm’ 입력</div>
+        </div>
+        <div class="control-box">
+          <strong>기준점 표 사용법</strong>
+          <div class="hint">
+            아래 좌표는 입체 상자의 예시입니다. 실제 장면의 원점과 축 기준점 좌표로 바꾸세요.
+            각 행은 사진 A와 B에서 같은 물리적 점이어야 합니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="mode-bar">
+        <div>
+          <strong id="modeTitle">현재: 기준점 찍기</strong>
+          <div class="hint" id="modeHint">표에서 기준점 행을 고른 뒤 두 사진을 클릭하세요.</div>
+        </div>
+        <div class="mode-buttons">
+          <button class="mode-button active" id="calModeButton" type="button">기준점 모드</button>
+          <button class="mode-button" id="targetModeButton" type="button" disabled>목표점 모드</button>
+        </div>
+      </div>
+
+      <div class="hint" style="margin-bottom:8px;">휴대폰에서는 기준점 표를 좌우로 밀어서 X·Y·Z와 두 사진의 픽셀 값을 볼 수 있습니다.</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>선택</th>
+              <th>이름</th>
+              <th>X</th>
+              <th>Y</th>
+              <th>Z</th>
+              <th>사진 A 픽셀</th>
+              <th>사진 B 픽셀</th>
+              <th>삭제</th>
+            </tr>
+          </thead>
+          <tbody id="calibrationBody"></tbody>
+        </table>
+      </div>
+
+      <div class="actions">
+        <button class="secondary" id="addRowButton" type="button">기준점 추가</button>
+        <button class="danger-ghost" id="clearClicksButton" type="button">모든 클릭 지우기</button>
+        <button class="primary" id="calibrateButton" type="button">카메라 보정 계산</button>
+        <span class="hint" id="calibrationCount">완료된 기준점 0개 / 최소 6개</span>
+      </div>
+
+      <div class="error-box" id="calibrationError"></div>
+      <div class="cal-summary" id="calibrationSummary" hidden></div>
+    </section>
+
+    <section class="section" aria-labelledby="targetHeading">
+      <div class="section-head">
+        <div>
+          <h2 id="targetHeading">3. 목표점의 3D 좌표</h2>
+          <p>보정이 끝난 뒤 ‘목표점 모드’에서 같은 물체의 같은 점을 사진 A와 B에서 한 번씩 클릭하세요.</p>
+        </div>
+        <button class="secondary" id="clearTargetButton" type="button">목표점 다시 찍기</button>
+      </div>
+
+      <div class="hint" id="targetStatus">먼저 카메라 보정을 완료하세요.</div>
+      <div class="error-box" id="targetError"></div>
+
+      <div class="result-panel" id="resultPanel">
+        <div class="result-title">
+          <h3>계산된 목표 위치</h3>
+          <span class="quality-pill" id="qualityPill">확인</span>
+        </div>
+        <div class="xyz-grid">
+          <div class="xyz"><small>X</small><strong id="resultX">-</strong></div>
+          <div class="xyz"><small>Y</small><strong id="resultY">-</strong></div>
+          <div class="xyz"><small>Z</small><strong id="resultZ">-</strong></div>
+        </div>
+        <div class="result-metrics" id="resultMetrics"></div>
+        <p class="result-note" id="resultNote"></p>
+        <div class="actions">
+          <button class="primary" id="saveResultButton" type="button">사진과 결과를 Drive에 저장</button>
+        </div>
+        <div class="saved-result" id="savedResult"></div>
+      </div>
+    </section>
+    <nav class="app-mode-nav" id="appModeNav" aria-label="분석 종류 선택">
+  <button class="app-mode-button" id="photoAppMode" type="button">사진 한 점 측정</button>
+  <button class="app-mode-button active" id="videoAppMode" type="button">영상 3차원 운동 분석</button>
+</nav>
+
+<section class="section" id="videoWorkflow" aria-labelledby="videoWorkflowHeading">
+  <div class="section-head">
+    <div>
+      <h2 id="videoWorkflowHeading">두 영상으로 3차원 운동 분석</h2>
+      <p>동기화된 두 영상에서 기준점을 보정하고, 목표물을 수동 또는 색상으로 추적해 위치·속도·가속도를 계산합니다.</p>
+    </div>
+  </div>
+
+  <div class="video-steps" aria-label="영상 분석 순서">
+    <div class="video-step"><b>1</b><span>영상 A·B 선택</span></div>
+    <div class="video-step"><b>2</b><span>프레임 동기화</span></div>
+    <div class="video-step"><b>3</b><span>기준점 보정</span></div>
+    <div class="video-step"><b>4</b><span>수동·색상 추적</span></div>
+    <div class="video-step"><b>5</b><span>운동 결과 확인</span></div>
+  </div>
+
+  <div class="video-guide" role="status" aria-live="polite">
+    <div>
+      <strong id="videoGuideTitle">먼저 카메라 A와 B의 영상을 선택하세요.</strong>
+      <span id="videoGuideText">두 영상은 같은 순간을 촬영하고 같은 FPS를 사용하는 것이 좋습니다.</span>
+    </div>
+    <div class="video-guide-status" id="videoGuideStatus">영상 필요</div>
+  </div>
+
+  <div class="video-block">
+    <div class="video-block-head">
+      <div>
+        <h3>1. 영상 선택과 프레임 동기화</h3>
+        <p>영상은 서버로 전송하지 않고 이 브라우저 안에서만 읽습니다. MP4, WebM, MOV 파일을 사용할 수 있습니다.</p>
+      </div>
+    </div>
+
+    <div class="video-grid">
+      <article class="video-card" id="videoCardA">
+        <div class="video-toolbar">
+          <div class="video-title"><span class="video-dot"></span>카메라 A</div>
+          <label class="file-button">영상 선택<input id="videoFileA" type="file" accept="video/mp4,video/webm,video/quicktime,video/*"></label>
+        </div>
+        <div class="video-stage">
+          <video id="videoElementA" preload="auto" playsinline hidden></video>
+          <canvas id="videoCanvasA" width="800" height="520" aria-label="카메라 A 영상 프레임"></canvas>
+          <canvas id="videoAnalysisA" width="800" height="520" hidden></canvas>
+          <div class="video-placeholder" id="videoPlaceholderA">첫 번째 카메라 영상을 선택하세요.</div>
+        </div>
+        <div class="video-meta" id="videoMetaA">선택한 영상이 없습니다.</div>
+      </article>
+
+      <article class="video-card" id="videoCardB">
+        <div class="video-toolbar">
+          <div class="video-title"><span class="video-dot"></span>카메라 B</div>
+          <label class="file-button">영상 선택<input id="videoFileB" type="file" accept="video/mp4,video/webm,video/quicktime,video/*"></label>
+        </div>
+        <div class="video-stage">
+          <video id="videoElementB" preload="auto" playsinline hidden></video>
+          <canvas id="videoCanvasB" width="800" height="520" aria-label="카메라 B 영상 프레임"></canvas>
+          <canvas id="videoAnalysisB" width="800" height="520" hidden></canvas>
+          <div class="video-placeholder" id="videoPlaceholderB">두 번째 카메라 영상을 선택하세요.</div>
+        </div>
+        <div class="video-meta" id="videoMetaB">선택한 영상이 없습니다.</div>
+      </article>
+    </div>
+
+    <div class="video-controls">
+      <div class="video-control"><label for="videoFps">실제 촬영 FPS</label><input id="videoFps" type="number" min="1" max="960" step="1" value="120"></div>
+      <div class="video-control"><label for="videoPlaybackFps">파일 재생 FPS</label><input id="videoPlaybackFps" type="number" min="1" max="960" step="1" value="30"></div>
+      <div class="video-control"><label for="videoOffsetB">영상 B 시간 보정(프레임)</label><input id="videoOffsetB" type="number" min="-600" max="600" step="1" value="0"></div>
+      <div class="video-control"><label for="videoUnitScale">좌표 1칸의 실제 길이</label><input id="videoUnitScale" type="number" min="0.000001" step="any" value="1"></div>
+      <div class="video-control"><label for="videoUnitName">길이 단위</label><input id="videoUnitName" type="text" value="m" maxlength="12"></div>
+      <div class="video-timeline">
+        <button class="secondary" id="videoFirstFrame" type="button">처음</button>
+        <button class="secondary" id="videoPrevFrame" type="button">-1</button>
+        <button class="secondary" id="videoNextFrame" type="button">+1</button>
+        <input id="videoFrameSlider" type="range" min="0" max="0" step="1" value="0" aria-label="영상 프레임">
+        <span class="video-frame-readout" id="videoFrameReadout">0 / 0</span>
+      </div>
+      <div class="analysis-range" aria-label="운동 분석 시간 범위">
+        <strong>먼저 분석할 시간 범위를 정하세요</strong>
+        <div class="range-field">
+          <label for="videoRangeStart">시작 프레임</label>
+          <div class="range-field-row"><input id="videoRangeStart" type="number" min="0" max="0" step="1" value="0"><button class="secondary" id="videoSetRangeStart" type="button">현재로 지정</button></div>
+        </div>
+        <div class="range-field">
+          <label for="videoRangeEnd">끝 프레임</label>
+          <div class="range-field-row"><input id="videoRangeEnd" type="number" min="0" max="0" step="1" value="0"><button class="secondary" id="videoSetRangeEnd" type="button">현재로 지정</button></div>
+        </div>
+        <div class="range-actions">
+          <button class="primary" id="videoPlayRange" type="button">▶ 선택 구간 재생</button>
+          <button class="secondary" id="videoGoRangeStart" type="button">시작으로 이동</button>
+          <div class="playback-rate-buttons" aria-label="영상 재생 속도">
+            <button id="videoRate05" type="button">0.5×</button>
+            <button class="active" id="videoRate1" type="button">1×</button>
+            <button id="videoRate2" type="button">2×</button>
+            <button id="videoRate4" type="button">4×</button>
+          </div>
+        </div>
+        <div class="range-summary" id="videoRangeSummary">0~0 프레임 · 0.000초</div>
+      </div>
+    </div>
+    <div class="video-note"><strong>FPS 입력법:</strong> 120fps로 촬영해 30fps 슬로모션으로 저장한 파일은 ‘실제 촬영 FPS 120 / 파일 재생 FPS 30’으로 입력하세요. 정상 속도의 120fps 파일은 두 값 모두 120입니다. 프로그램은 촬영 FPS로 실제 시간·속도·가속도를 계산하고, 파일 재생 FPS로 정확한 프레임을 찾습니다.</div>
+    <div class="video-note">스마트폰 두 대로 촬영한 영상은 시작 시각이 다를 수 있습니다. 같은 동작이나 플래시가 보이는 프레임을 찾은 뒤 ‘영상 B 시간 보정’을 조절하세요.</div>
+  </div>
+
+  <div class="video-block">
+    <div class="video-block-head">
+      <div>
+        <h3>2. 영상 속 좌표계 보정</h3>
+        <p>기준점 행을 선택한 다음 현재 프레임의 카메라 A와 B에서 같은 점을 클릭하세요. 높이가 다른 점을 포함해 최소 6개가 필요합니다.</p>
+      </div>
+    </div>
+
+    <div class="video-calibration-layout">
+      <div class="video-table-wrap">
+        <table class="video-table">
+          <thead><tr><th>선택</th><th>이름</th><th>X</th><th>Y</th><th>Z</th><th>A 픽셀</th><th>B 픽셀</th></tr></thead>
+          <tbody id="videoCalibrationBody"></tbody>
+        </table>
+      </div>
+      <aside class="video-side-panel">
+        <strong id="videoCalibrationPrompt">1번 원점을 선택하세요.</strong>
+        <p id="videoCalibrationDetail">카메라 A와 B에서 같은 기준점을 클릭합니다.</p>
+        <label>완료된 기준점</label>
+        <div id="videoCalibrationCount">0 / 7</div>
+        <label>보정 상태</label>
+        <div id="videoCalibrationStatus">아직 계산하지 않았습니다.</div>
+        <div class="actions">
+          <button class="secondary" id="videoCoordinateOverlay" type="button">좌표계 잡기</button>
+          <button class="secondary" id="videoAddPoint" type="button">기준점 추가</button>
+          <button class="danger-ghost" id="videoClearCalibration" type="button">클릭 지우기</button>
+          <button class="primary" id="videoCalibrate" type="button">카메라 보정 계산</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="video-block">
+    <div class="video-block-head">
+      <div>
+        <h3>3. 목표물 추적</h3>
+        <p>수동 모드는 필요한 프레임마다 두 화면을 클릭합니다. 색상 자동 추적은 첫 프레임의 목표물을 클릭한 뒤 비슷한 색을 전체 영상에서 찾습니다.</p>
+      </div>
+      <div class="mode-buttons">
+        <button class="mode-button active" id="videoManualMode" type="button">수동 추적</button>
+        <button class="mode-button" id="videoColorMode" type="button">색상 자동 추적</button>
+      </div>
+    </div>
+
+    <div class="object-tracker-bar">
+      <strong>지금 추적할 물체</strong>
+      <button class="secondary object-target-button active" id="videoTarget1" type="button"><i style="background:#dc2626"></i>물체 1 · 빨강</button>
+      <button class="secondary object-target-button" id="videoTarget2" type="button"><i style="background:#0891b2"></i>물체 2 · 청록</button>
+      <span class="object-tracker-note">물체 1을 추적한 뒤 물체 2로 바꾸어 같은 과정을 반복합니다. 두 물체의 흔적과 3D 궤적은 함께 표시됩니다.</span>
+    </div>
+
+    <div class="tracker-controls">
+      <div class="tracker-control">
+        <label><span>선택한 목표 색상</span></label>
+        <div class="color-samples">
+          <span class="color-sample">A <i class="color-swatch" id="videoColorA"></i></span>
+          <span class="color-sample">B <i class="color-swatch" id="videoColorB"></i></span>
+        </div>
+      </div>
+      <div class="tracker-control">
+        <label for="videoColorThreshold"><span>색상 허용 범위</span><b id="videoThresholdValue">85</b></label>
+        <input id="videoColorThreshold" type="range" min="20" max="180" step="1" value="85">
+      </div>
+      <div class="tracker-control">
+        <label for="videoSearchRadius"><span>프레임 간 탐색 반경</span><b id="videoRadiusValue">120px</b></label>
+        <input id="videoSearchRadius" type="range" min="30" max="300" step="5" value="120">
+      </div>
+      <div class="tracker-control">
+        <label for="videoSmoothWindow"><span>좌표 평활화</span><b id="videoSmoothValue">5프레임</b></label>
+        <input id="videoSmoothWindow" type="range" min="1" max="15" step="2" value="5">
+      </div>
+      <div class="tracker-control">
+        <label for="videoTargetRadius"><span>목표물 동그라미 크기</span><b id="videoTargetRadiusValue">24px</b></label>
+        <input id="videoTargetRadius" type="range" min="4" max="100" step="2" value="24">
+        <div class="target-region-note">목표물의 중심을 클릭한 뒤 동그라미가 물체 전체를 감싸도록 조절하세요. 이 범위의 색을 추적합니다.</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="secondary" id="videoClearCurrentTarget" type="button">현재 프레임 목표점 지우기</button>
+      <button class="danger-ghost" id="videoClearTracks" type="button">선택 물체 추적 지우기</button>
+      <button class="primary" id="videoAutoTrack" type="button" disabled>색상 자동 추적 시작</button>
+      <button class="secondary" id="videoRecalculate" type="button">3D 운동 다시 계산</button>
+    </div>
+    <div class="hint" id="videoTrackingStatus">카메라 보정을 먼저 완료하세요.</div>
+    <div class="tracker-progress" id="videoTrackerProgress">
+      <progress id="videoTrackerProgressBar" max="100" value="0"></progress>
+      <div id="videoTrackerProgressText">추적 준비 중</div>
+    </div>
+    <div class="tracking-review" id="videoTrackingReview" hidden>
+      <strong id="videoTrackingReviewTitle">추적 위치를 확인해 주세요.</strong>
+      <p id="videoTrackingReviewText">신뢰도가 낮은 후보입니다.</p>
+      <div class="actions">
+        <button class="primary" id="videoTrackingReviewAccept" type="button">추천 위치 적용</button>
+        <button class="secondary" id="videoTrackingReviewManual" type="button">직접 수정하고 중단</button>
+        <button class="danger-ghost" id="videoTrackingReviewSkip" type="button">이 프레임 건너뛰기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="video-block" id="videoResults" hidden>
+    <div class="video-block-head">
+      <div>
+        <h3>4. 3차원 운동 분석 결과</h3>
+        <p>평활화된 3차원 좌표로 이동거리, 속도와 가속도를 계산합니다. 원본 좌표와 품질값은 CSV에 함께 포함됩니다.</p>
+      </div>
+    </div>
+
+    <div class="motion-metrics" id="videoMotionMetrics"></div>
+    <div class="motion-charts">
+      <div class="motion-chart">
+        <div class="motion-chart-head"><div><h4>움직일 수 있는 3차원 이동 궤적</h4><span class="chart-help">실제 좌표 눈금 표시 · 드래그해 회전 · 휠로 확대</span></div><div class="view-buttons"><button class="secondary" id="videoViewFront" type="button">정면</button><button class="secondary" id="videoViewSide" type="button">측면</button><button class="secondary" id="videoViewTop" type="button">위쪽</button><button class="secondary" id="videoReset3dView" type="button">시점 초기화</button></div></div>
+        <canvas id="videoTrajectoryChart" width="720" height="430"></canvas>
+      </div>
+      <div class="motion-chart">
+        <div class="motion-chart-head"><div><h4>시간에 따른 X·Y·Z</h4><span class="chart-help">그래프에 마우스를 올리면 좌표가 표시됩니다.</span></div></div>
+        <div class="chart-canvas-wrap" id="videoPositionChartWrap"><canvas id="videoPositionChart" width="720" height="430"></canvas><div class="chart-tooltip" id="videoPositionTooltip"></div></div>
+      </div>
+      <div class="motion-chart wide"><div class="motion-chart-head"><h4>속도와 가속도</h4></div><canvas id="videoKinematicsChart" width="1200" height="360"></canvas></div>
+    </div>
+
+    <div class="coordinate-transform">
+      <h4>분석 좌표축·원점 바꾸기</h4>
+      <p>각도를 입력하지 않습니다. 위 3D 그래프에서 원점과 X·Y축 끝의 큰 손잡이를 직접 드래그하세요. Z축은 오른손 좌표계에 맞춰 자동 계산됩니다.</p>
+      <div class="axis-drag-help"><span><i style="background:#263650"></i>검정 원점 손잡이: 원점 이동</span><span><i style="background:#dc2626"></i>빨간 손잡이: +X 방향</span><span><i style="background:#16835e"></i>초록 손잡이: +Y 방향</span></div>
+      <div class="actions">
+        <button class="primary active" id="videoEditCoordinate" type="button">좌표축 드래그 편집 켜짐</button>
+        <button class="secondary" id="videoUseStartOrigin" type="button">선택 물체 시작점을 원점으로</button>
+        <button class="danger-ghost" id="videoResetTransform" type="button">원래 좌표계로</button>
+        <span id="videoTransformStatus">원점 (0, 0, 0) · X축 (1, 0, 0) · Y축 (0, 1, 0)</span>
+      </div>
+    </div>
+
+    <div class="results-scroll">
+      <table>
+        <thead><tr><th>프레임</th><th>시간(s)</th><th>X</th><th>Y</th><th>Z</th><th>속도</th><th>가속도</th><th>두 광선 간격</th><th>신뢰도</th></tr></thead>
+        <tbody id="videoResultsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="videoDownloadCsv" type="button">CSV 내려받기</button>
+      <button class="secondary" id="videoSaveDrive" type="button">분석 결과를 Drive에 저장</button>
+      <span class="hint" id="videoSaveStatus">영상 파일은 Drive로 전송하지 않습니다.</span>
+    </div>
+  </div>
+</section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="busy-cover" id="busyCover">
+    <div class="busy-card"><div class="spinner"></div><span id="busyText">처리 중입니다.</span></div>
+  </div>
+  <script src="./video.js"></script>
+  <script src="./base.js"></script>
+  <script src="./workspace.js"></script>
+</body>
+</html>

@@ -382,7 +382,10 @@ export default function Home() {
           <p className="eyebrow">TWO CAMERAS · ONE MOTION</p>
           <h1>두 대의 스마트폰으로<br /><em>움직임을 3차원으로.</em></h1>
           <p className="hero-description">촬영 준비부터 동기화, 좌표 보정, 운동 분석까지.<br />수업 시간에 한 화면에서 끝내는 과학 실험 도구이다.</p>
-          <a className="primary-link" href="#start">첫 실험 준비하기 <span>→</span></a>
+          <div className="hero-actions">
+            <a className="primary-link" href="#start">첫 실험 준비하기 <span>→</span></a>
+            <a className="analysis-link" href="/analyze">영상이 이미 있어요 · 바로 분석 <span>↗</span></a>
+          </div>
         </div>
 
         <div className="orbit-card" aria-label="두 카메라 3차원 촬영 개념 그림">
@@ -555,8 +558,8 @@ export default function Home() {
                   {startAt && <button className="ghost-button" onClick={resetRecording}>다시 준비하기</button>}
                 </div>
                 <section className="analysis-bridge">
-                  <div><span className="entry-tag">3D ANALYSIS</span><h3>촬영 후 3차원 분석</h3><p>새 분석 서버가 완성되기 전까지는 기존 좌표 보정·추적 웹앱을 함께 사용할 수 있다.</p></div>
-                  <a href="https://script.google.com/macros/s/AKfycbyne-aoxnT1dD_t6WNywKbRHlXvV1ahOnpAwH4ngnUmS4BJPVg_oYh6dlq9Ehdr2AX9/exec" target="_blank" rel="noreferrer">기존 3차원 분석 열기</a>
+                  <div><span className="entry-tag">3D ANALYSIS</span><h3>촬영 후 바로 3차원 분석</h3><p>좌우 영상을 한 화면에 열고 좌표 보정, 목표 추적, 궤적과 그래프 확인까지 이어서 할 수 있다.</p></div>
+                  <a href="/analyze">통합 분석 작업대 열기</a>
                 </section>
               </>
             ) : (
