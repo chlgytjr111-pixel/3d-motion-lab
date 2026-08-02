@@ -140,7 +140,7 @@ body > .shell {
   min-width: 0;
   flex: 1 1 auto;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 8px;
   padding: 10px;
   overflow: hidden;
@@ -148,6 +148,7 @@ body > .shell {
 }
 
 .workspace-viewer {
+  grid-row: 2;
   min-height: 0;
   padding: 8px;
   border: 1px solid #c9d2df;
@@ -191,6 +192,7 @@ body > .shell {
 }
 
 .workspace-timeline {
+  grid-row: 3;
   display: grid;
   grid-template-columns: auto auto auto minmax(100px, 1fr) auto;
   align-items: center;
@@ -206,16 +208,18 @@ body > .shell {
 }
 
 .workspace-guide {
-  position: absolute;
+  position: relative;
   z-index: 8;
-  top: 20px;
-  left: 50%;
-  width: min(650px, calc(100% - 48px));
+  grid-row: 1;
+  top: auto;
+  left: auto;
+  width: 100%;
   margin: 0;
-  transform: translateX(-50%);
+  transform: none;
   border: 1px solid rgba(104, 135, 198, .55);
+  border-radius: 11px;
   background: rgba(246, 249, 255, .95);
-  box-shadow: 0 10px 28px rgba(22, 38, 70, .18);
+  box-shadow: 0 5px 14px rgba(22, 38, 70, .11);
   backdrop-filter: blur(7px);
 }
 
@@ -305,12 +309,12 @@ body:not(.photo-mode) .workspace-toolbar .photo-only { display: none; }
 #photoWorkflow > .steps,
 #photoWorkflow > .notice { display: none; }
 
-.photo-workspace-main { grid-template-rows: minmax(0, 1fr); }
+.photo-workspace-main { grid-template-rows: auto minmax(0, 1fr); }
 .photo-workspace-viewer .photo-grid { height: 100%; gap: 8px; }
 .photo-workspace-viewer .photo-card { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .photo-workspace-viewer .canvas-wrap { min-height: 0; flex: 1 1 auto; display: grid; place-items: center; background: #141a24; }
 .photo-workspace-viewer canvas { width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }
-.photo-workspace-guide { width: min(710px, calc(100% - 48px)); }
+.photo-workspace-guide { width: 100%; }
 .workspace-photo-intro { margin-bottom: 12px; padding: 14px; border: 1px solid #cad8ee; border-radius: 12px; background: #f3f7ff; }
 .workspace-photo-intro strong { color: #274b8c; }
 .workspace-photo-intro p { margin: 6px 0 0; color: #5d6a7f; font-size: 13px; line-height: 1.55; }
