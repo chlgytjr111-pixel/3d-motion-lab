@@ -11,6 +11,8 @@ html, body {
 }
 
 body {
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   background: #e9edf4;
 }
@@ -27,6 +29,18 @@ body > .shell {
 #videoWorkflow > .section-head,
 #videoWorkflow > .video-steps {
   display: none !important;
+}
+
+#videoWorkflow {
+  width: 100%;
+  height: calc(100vh - 58px);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .workspace-topbar {
@@ -295,6 +309,48 @@ body > .shell {
 .workspace-empty-results strong { display: block; margin-bottom: 7px; color: #2f405e; font-size: 18px; }
 .workspace-empty-results p { margin: 0; line-height: 1.6; }
 
+.chart-fullscreen-button { white-space: nowrap; }
+
+.motion-chart:fullscreen,
+.motion-chart.chart-pseudo-fullscreen {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 20px;
+  border: 0;
+  border-radius: 0;
+  background: #f7f9fd;
+}
+
+.motion-chart.chart-pseudo-fullscreen {
+  position: fixed;
+  z-index: 2000;
+  inset: 0;
+}
+
+.motion-chart:fullscreen .motion-chart-head,
+.motion-chart.chart-pseudo-fullscreen .motion-chart-head { flex: 0 0 auto; }
+
+.motion-chart:fullscreen > canvas,
+.motion-chart:fullscreen .chart-canvas-wrap,
+.motion-chart.chart-pseudo-fullscreen > canvas,
+.motion-chart.chart-pseudo-fullscreen .chart-canvas-wrap {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.motion-chart:fullscreen canvas,
+.motion-chart.chart-pseudo-fullscreen canvas {
+  width: 100%;
+  height: 100%;
+  max-height: calc(100vh - 92px);
+  object-fit: contain;
+}
+
 #photoWorkflow {
   height: calc(100vh - 58px);
   padding: 0;
@@ -330,6 +386,7 @@ body:not(.photo-mode) .workspace-toolbar .photo-only { display: none; }
 
 @media (max-width: 900px) {
   body { overflow: auto; }
+  #videoWorkflow { height: auto; min-height: calc(100vh - 100px); overflow: visible; }
   .workspace-topbar { height: auto; min-height: 58px; flex-wrap: wrap; padding: 8px 10px; }
   .workspace-brand { min-width: 0; }
   .workspace-topbar .app-mode-nav { order: 3; width: 100%; min-width: 0; }

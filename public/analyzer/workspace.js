@@ -23,6 +23,54 @@
     return button;
   }
 
+  function installChartFullscreen(resultsBlock) {
+    var charts = Array.prototype.slice.call(resultsBlock.querySelectorAll('.motion-chart'));
+    charts.forEach(function (chart) {
+      var head = chart.querySelector('.motion-chart-head');
+      if (!head || head.querySelector('.chart-fullscreen-button')) return;
+      var controls = head.querySelector('.view-buttons');
+      if (!controls) {
+        controls = make('div', 'view-buttons');
+        head.appendChild(controls);
+      }
+      var button = make('button', 'secondary chart-fullscreen-button', '전체화면');
+      button.type = 'button';
+      controls.appendChild(button);
+
+      function pseudoActive() { return chart.classList.contains('chart-pseudo-fullscreen'); }
+      function syncButton() {
+        var active = document.fullscreenElement === chart || pseudoActive();
+        button.textContent = active ? '전체화면 닫기' : '전체화면';
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      }
+
+      button.addEventListener('click', function () {
+        if (document.fullscreenElement === chart) {
+          document.exitFullscreen();
+        } else if (pseudoActive()) {
+          chart.classList.remove('chart-pseudo-fullscreen');
+          document.body.classList.remove('chart-fullscreen-open');
+          syncButton();
+        } else if (chart.requestFullscreen) {
+          var request = chart.requestFullscreen();
+          if (request && request.catch) {
+            request.catch(function () {
+              chart.classList.add('chart-pseudo-fullscreen');
+              document.body.classList.add('chart-fullscreen-open');
+              syncButton();
+            });
+          }
+        } else {
+          chart.classList.add('chart-pseudo-fullscreen');
+          document.body.classList.add('chart-fullscreen-open');
+          syncButton();
+        }
+      });
+      document.addEventListener('fullscreenchange', syncButton);
+      syncButton();
+    });
+  }
+
   function initWorkspace() {
     var shell = document.querySelector('main.shell');
     var nav = document.getElementById('appModeNav');
@@ -45,6 +93,7 @@
     var videoGrid = mediaBlock.querySelector('.video-grid');
     var timeline = mediaBlock.querySelector('.video-timeline');
     var guide = videoWorkflow.querySelector('.video-guide');
+    installChartFullscreen(resultsBlock);
 
     var layout = make('div', 'workspace-layout');
     var toolbar = make('nav', 'workspace-toolbar');
